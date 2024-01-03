@@ -4,9 +4,6 @@ def qa_stage_run=false
 pipeline {
 
     agent any
-    environment {
-        SNYK_TOKEN = credentials('snyk-api-token')
-    }
     stages {
         stage ('checkout') {
                     steps {
@@ -34,19 +31,18 @@ pipeline {
         }
     stage('SYNK Scan') {
         steps {
-            script{
-                dir("build")
-                    {
-                        echo "Starting Scan"
-                        def scanExitCode = sh(script: 'snyk container test dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}  --file=./Dockerfile --json-file-output=vulnerabilities.json --org=raj-epam --project-name=python_demo-FE', returnStatus: true)
-                        def junitXml = sh(script: 'python convert_to_junit.py < snyk-report.json', returnStdout: true).trim()
-                        writeFile file: 'junit-results.xml', text: junitXml
-                        junit skipPublishingChecks: true, allowEmptyResults :true, testResults: 'junit-results.xml'
-                        echo "error code = ${scanExitCode}"
-                    }
-                }
+            dir("build")
+            {
+                snykSecurity monitorProjectOnBuild: false, organisation: 'raj-epam', projectName: 'python_demo-FE', severity: 'critical', snykInstallation: 'snyk', snykTokenId: 'org-synk-credentials'
+                // def error_code = sh script: 'snyk container test dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}  --file=./Dockerfile --json-file-output=vulnerabilities.json', returnStatus: true
+                // sh 'snyk-filter -i vulnerabilities.json -f exploitable_cvss_9.yml'
+                // echo "error code = ${error_code}"
             }
         }
+    }
+    
+    
+
         // stage ('Push') {
         //     steps {
         //         dir("build")
