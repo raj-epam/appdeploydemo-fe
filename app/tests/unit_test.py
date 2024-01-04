@@ -1,17 +1,22 @@
-# test_app.py
+
 import unittest
-from ..app import app
+from app import app
 
 class TestFlaskApp(unittest.TestCase):
 
     def setUp(self):
-        # Create a test client
         self.app = app.test_client()
+        self.app.testing = True
+
+    def tearDown(self):
+        pass
 
     def test_home_route(self):
-        # Test the home route
+        # Use the test client to make a request to the home route
         response = self.app.get('/')
+        # Assert that the response status code is 200 (OK)
         self.assertEqual(response.status_code, 200)
+        # Assert that the response data contains a specific content
         self.assertIn(b"Welcome to Simple Web App", response.data)
     
     def test_template_rendering(self):
