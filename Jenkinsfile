@@ -30,12 +30,29 @@ pipeline {
                 sh 'pip install -r requirements.txt '
                 //def scannerHome = tool 'sonarqube'
                 //env.PATH = "${scannerHome}/bin:${env.PATH}"
-
+            }
+            dir("build/app") {
                 withSonarQubeEnv(installationName: 'sonarqube') {
                     sh '${scannerHome}/bin/sonar-scanner'
             }
         }
     }
+}
+    stage ("Test Code") {
+        steps {
+            dir("build") {
+                sh 'pip install -r requirements.txt '
+                //def scannerHome = tool 'sonarqube'
+                //env.PATH = "${scannerHome}/bin:${env.PATH}"
+            }
+            dir("build/test") {
+                sh 'python3 -m venv venv'
+                sh 'python3 -m unittest discover tests'
+            }
+        }
+    }    
+    
+    
 
     // stage ('Build') {
     //         steps {
@@ -108,7 +125,7 @@ pipeline {
         //             
         //         }
         //     }
-     }
+    // }
     }
         post {
             // Clean after build
