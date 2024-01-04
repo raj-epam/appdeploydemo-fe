@@ -13,7 +13,7 @@ class TestFlaskApp(unittest.TestCase):
 
     def test_home_route(self):
         # Use the test client to make a request to the home route
-        response = self.app.get('/')
+        response = self.app.get('/fe')
         # Assert that the response status code is 200 (OK)
         self.assertEqual(response.status_code, 200)
         # Assert that the response data contains a specific content
@@ -21,7 +21,7 @@ class TestFlaskApp(unittest.TestCase):
     
     def test_template_rendering(self):
         # Test if the index template is rendered correctly
-        response = self.app.get('/')
+        response = self.app.get('/fe')
         self.assertIn(b"Simple Web App", response.data)
         self.assertIn(b"alt=\"guitar player at concert\"", response.data)
 

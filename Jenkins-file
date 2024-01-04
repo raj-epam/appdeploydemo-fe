@@ -1,68 +1,34 @@
-def qa_stage_run=false
-
-
 pipeline {
-
     agent any
+
+    environment {
+        GIT_CREDENTIALS = credentials('your-git-credentials-id')
+    }
+
     stages {
-        stage ('checkout') {
-                    steps {
-                        sh 'mkdir -p deployments'
-                        dir("build")
-                        {
-                            git branch: "main",
-                            credentialsId: "raj-epam",
-                            url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
-                        }
-                    }
-                }
-
-        //     }
-        // }
-    //stage ("Scan Code")
-    //Docker Image Build
-    stage ('Build') {
+        stage('Checkout') {
             steps {
-                dir("build")
-                {
-                    sh 'docker build -t dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER} .'
+                // Checkout the code from your Git repository using credentials
+                dir("deploy")
+                    {
+                        git branch: "main",
+                        credentialsId: "raj-epam",
+                        url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
+
+                    
+                    sh '''sed -i 's|dhlawowacr.azurecr.io/pywebapp:[^"]*|dhlawowacr.azurecr.io/pywebapp:33|g' your-deployment.yaml'''
+                    // Commit changes
+                    sh 'git add .'
+                    sh 'git commit -m "Update HTML file"'
+                    
+                    // Push changes using the credentials
+                    withCredentials([usernamePassword(credentialsId: env.GIT_CREDENTIALS, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                        sh "git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/yourusername/your-repo.git"
+                        sh 'git push origin main'
+                    }
+                
                 }
             }
         }
-    stage('SYNK Scan') {
-        steps {
-            dir("build")
-            {
-                snykSecurity monitorProjectOnBuild: false, organisation: 'raj-epam', projectName: 'python_demo-FE', severity: 'critical', snykInstallation: 'snyk', snykTokenId: 'org-synk-credentials'
-                // def error_code = sh script: 'snyk container test dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}  --file=./Dockerfile --json-file-output=vulnerabilities.json', returnStatus: true
-                // sh 'snyk-filter -i vulnerabilities.json -f exploitable_cvss_9.yml'
-                // echo "error code = ${error_code}"
-            }
-        }
     }
-    
-    
-
-        // stage ('Push') {
-        //     steps {
-        //         dir("build")
-        //         {
-        //             sh 'docker push dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}'
-        //         }
-        //     }
-        // }
-    }
-        post {
-            // Clean after build
-            always {
-                cleanWs(cleanWhenNotBuilt: false,
-                        deleteDirs: true,
-                        disableDeferredWipeout: true,
-                        notFailBuild: true,
-                        patterns: [[pattern: '.gitignore', type: 'INCLUDE'],
-                                [pattern: '.propsfile', type: 'EXCLUDE']])
-            }
-    }
-
-
 }
