@@ -6,29 +6,6 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                // Checkout the code from your Git repository using credentials
-                dir("deploy")
-                    {
-                        git branch: "main",
-                        credentialsId: "raj-epam",
-                        url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
 
-                    
-                    sh '''sed -i 's|dhlawowacr.azurecr.io/pywebapp:[^"]*|dhlawowacr.azurecr.io/pywebapp:33|g' your-deployment.yaml'''
-                    // Commit changes
-                    sh 'git add .'
-                    sh 'git commit -m "Update HTML file"'
-                    
-                    // Push changes using the credentials
-                    withCredentials([usernamePassword(credentialsId: env.GIT_CREDENTIALS, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                        sh "git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/yourusername/your-repo.git"
-                        sh 'git push origin main'
-                    }
-                
-                }
-            }
-        }
     }
 }
