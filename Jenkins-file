@@ -14,12 +14,12 @@ pipeline {
     stages {
             stage ('checkout') {
                 parallel{
-                    stage ('checkout-build') {
+                stage ('checkout-build') {
                     steps {
                         sh 'mkdir -p build'
                         dir("build")
                         {
-                            git branch: "canary-feature",
+                            git branch: "main",
                             credentialsId: "raj-epam",
                             url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
                         }
@@ -138,7 +138,7 @@ pipeline {
                 sh 'docker push dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}'       
                 sh 'docker image rm dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}'                    
             }
-            dir("build/deployments/testing") {
+            dir("build/deployments") {
                 sh "ls -laR"
                 sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev.yaml"
                 sh 'cp dev.yaml ../../../deploy/core-template'
