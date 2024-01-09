@@ -141,7 +141,7 @@ pipeline {
             dir("build/deployments") {
                 sh "ls -laR"
                 sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev.yaml"
-                sh 'cp dev.yaml ../../../deploy/core-template'
+                sh 'cp dev.yaml ../../deploy/core-template'
                 }
             dir("deploy/core-template") {  
                     sh "helm template  core-template . -f dev.yaml > resources-dev.yaml"
