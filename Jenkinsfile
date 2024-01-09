@@ -141,7 +141,7 @@ pipeline {
                     sh 'cat deployment.yaml'
                     // Commit changes
                     sh 'git add .'
-                    sh 'git commit -m "Update HTML file"'
+                    sh 'git commit -m "Update deployment file"'
                     sh 'git push https://$GIT_CREDENTIALS@$TARGET_REPO_URL HEAD:main'
                     // Push changes using the credentials
                     // withCredentials([usernamePassword(credentialsId: env.GIT_CREDENTIALS, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
