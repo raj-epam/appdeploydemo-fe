@@ -1,9 +1,6 @@
-def qa_stage_run=false
-
-
 pipeline {
     options {
-    buildDiscarder(logRotator(numToKeepStr: '3', artifactNumToKeepStr: '3'))
+    buildDiscarder(logRotator(numToKeepStr: '1', artifactNumToKeepStr: '1'))
     }
     agent any
     parameters {
@@ -33,7 +30,7 @@ pipeline {
                         sh 'mkdir -p build'
                         dir("build")
                         {
-                            git branch: "versioning",
+                            git branch: "canary-versioning",
                             credentialsId: "raj-epam",
                             url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
                         }
@@ -177,10 +174,11 @@ pipeline {
                                     sh 'echo "Canary Deployment Selected"'
                                     dir("build/deployments/testing") {
                                         sh "ls -laR"
+                                        //sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-shadow.yaml"
                                         sh 'cp dev-canary.yaml ../../../deploy/canary-template'
                                         }
                                     dir("deploy/canary-template") {  
-                                            sh "helm template  core-template . -f dev-canary.yaml --set tag=${BUILD_NUMBER}> resources.yaml"
+                                            sh "helm template  core-template . -f dev-canary.yaml --set image.tag=${BUILD_NUMBER} --set istio.weight=$weight > resources.yaml"
                                             sh "cp resources.yaml ../"
                                             echo "-------------------*******Manifest Display*******-------------------"    
                                             sh "cat resources.yaml"       
@@ -191,11 +189,11 @@ pipeline {
                                     sh 'echo "Shadow Deployment Selected"'
                                     dir("build/deployments/testing") {
                                         sh "ls -laR"
-                                        sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-shadow.yaml"
+                                        //sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-shadow.yaml"
                                         sh 'cp dev-shadow.yaml ../../../deploy/shadow-template'
                                         }
                                     dir("deploy/shadow-template") {  
-                                            sh "helm template  core-template . -f dev-shadow.yaml > resources.yaml"
+                                            sh "helm template  core-template . -f dev-shadow.yaml --set image.tag=${BUILD_NUMBER} > resources.yaml"
                                             sh "cp resources.yaml ../"
                                             echo "-------------------*******Manifest Display*******-------------------"    
                                             sh "cat resources.yaml"       
@@ -206,11 +204,11 @@ pipeline {
                                     sh 'echo "Blue Green Header Based Deployment Selected"'
                                     dir("build/deployments/testing") {
                                         sh "ls -laR"
-                                        sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-header.yaml"
+                                        //sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-header.yaml"
                                         sh 'cp dev-header.yaml ../../../deploy/header-template'
                                         }
                                     dir("deploy/header-template") {  
-                                            sh "helm template  core-template . -f dev-header.yaml > resources.yaml"
+                                            sh "helm template  core-template . -f dev-header.yaml --set image.tag=${BUILD_NUMBER} > resources.yaml"
                                             sh "cp resources.yaml ../"
                                             echo "-------------------*******Manifest Display*******-------------------"    
                                             sh "cat resources.yaml"       
@@ -236,11 +234,11 @@ pipeline {
                                     sh 'echo "Rolling Deployment Selected"'
                                     dir("build/deployments") {
                                         sh "ls -laR"
-                                        sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev.yaml"
+                                        //sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev.yaml"
                                         sh 'cp dev.yaml ../../deploy/core-template'
                                         }
                                     dir("deploy/core-template") {  
-                                            sh "helm template  core-template . -f dev.yaml --set tag=${BUILD_NUMBER} > resources.yaml"
+                                            sh "helm template  core-template . -f dev.yaml --set image.tag=${BUILD_NUMBER} > resources.yaml"
                                             sh "cp resources.yaml ../"
                                             echo "-------------------*******Manifest Display*******-------------------"    
                                             sh "cat resources.yaml"       
@@ -280,11 +278,15 @@ pipeline {
                         sh 'cp dev-canary.yaml ../../../deploy/canary-template'
                         }
                     dir("deploy/canary-template") {  
-                            sh "APP_NAME=\$(yq '.app_name' dev-canary.yaml)"
-                            sh "NAMESPACE=\$(yq '.namespace' dev-canary.yaml)"
-                            sh "IMAGE=\$(kubectl get deployment \$APP_NAME -n \$NAMESPACE -o=jsonpath='{\$.spec.template.spec.containers[:1].image}')"
-                            sh 'TAG=\$(echo \$IMAGE | cut -d  ":" -f2)'
-                            sh "helm template  core-template . -f dev-canary.yaml --set tag=\${TAG} --set weight=$weight> resources.yaml"
+                            sh '''APP=\$(yq '.app_name' dev-canary.yaml) 
+                                echo $APP
+                                BW="-"
+                                VERSION=\$(yq '.version' dev-canary.yaml) 
+                                APP_NAME="${APP}${BW}${VERSION} "
+                                NAMESPACE=\$(yq '.namespace' dev-canary.yaml)
+                                IMAGE=\$(kubectl get deployment \$APP_NAME -n \$NAMESPACE -o=jsonpath='{\$.spec.template.spec.containers[:1].image}')
+                                TAG=\$(echo \$IMAGE | cut -d  ":" -f2)
+                                helm template  core-template . -f dev-canary.yaml --set image.tag=\${TAG}  --set istio.weight=$weight> resources.yaml '''
                             echo "-------------------*******Manifest Display*******-------------------"    
                             sh "cat resources.yaml"       
                             echo "-------------------*******Manifest Display End*******-------------------"   
