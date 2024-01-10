@@ -82,7 +82,7 @@ volumeMounts: []
 
 istio:
   enabled: true
-  gateway: ""
+  gateway: app-gateway
   prefix: "/fe"
   rewrite: "/fe"
   hosts: "*"

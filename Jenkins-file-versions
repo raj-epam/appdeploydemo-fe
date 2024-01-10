@@ -6,10 +6,9 @@ pipeline {
     agent any
     parameters {
         choice(
-            choices: ['Canary' , 'Shadow', 'Blue-Green:-Header', 'Blue-Green:-Queryparam', 'Default'],
+            choices: ['Default' , 'Shadow', 'Blue-Green:-Header', 'Blue-Green:-Queryparam', 'Canary'],
             description: 'Deployment Strategy Type',
-            name: 'deployment',
-            defaultValue: 'Default')
+            name: 'deployment')
         string(defaultValue: '0', description: 'Canary Weight', name: 'weight', trim: true)
         booleanParam(
                 defaultValue: false,
@@ -32,7 +31,7 @@ pipeline {
                         sh 'mkdir -p build'
                         dir("build")
                         {
-                            git branch: "main",
+                            git branch: "versioning",
                             credentialsId: "raj-epam",
                             url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
                         }
@@ -171,11 +170,11 @@ pipeline {
                     stages {
                         stage('Manifest Check') {
                             steps{
+                            script {
                                 if (params.deployment == "Canary") {
                                     sh 'echo "Canary Deployment Selected"'
                                     dir("build/deployments/testing") {
                                         sh "ls -laR"
-                                        //sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-canary.yaml"
                                         sh 'cp dev-canary.yaml ../../../deploy/canary-template'
                                         }
                                     dir("deploy/canary-template") {  
@@ -236,16 +235,17 @@ pipeline {
                                     dir("build/deployments") {
                                         sh "ls -laR"
                                         sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev.yaml"
-                                        sh 'cp dev.yaml ../../../deploy/core-template'
+                                        sh 'cp dev.yaml ../../deploy/core-template'
                                         }
                                     dir("deploy/core-template") {  
-                                            sh "helm template  core-template . -f dev.yaml > resources.yaml"
+                                            sh "helm template  core-template . -f dev.yaml --set tag=${BUILD_NUMBER} > resources.yaml"
                                             sh "cp resources.yaml ../"
                                             echo "-------------------*******Manifest Display*******-------------------"    
                                             sh "cat resources.yaml"       
                                             echo "-------------------*******Manifest Display End*******-------------------"       
                                         }
                                 }
+                            }
                             }
                         }
                         stage('Version Manifest Deploy') {//Manifest Deploy for Dev Env Values
@@ -276,11 +276,11 @@ pipeline {
                         sh 'cp dev-canary.yaml ../../../deploy/canary-template'
                         }
                     dir("deploy/canary-template") {  
-                            sh "APP_NAME=$(yq ".app_name" dev-canary.yaml)"
-                            sh "NAMESPACE=$(yq ".namespace" dev-canary.yaml)"
-                            sh "IMAGE=$(kubectl get deployment $APP_NAME -n $NAMESPACE -o=jsonpath='{$.spec.template.spec.containers[:1].image}')"
-                            sh "TAG=$(echo $IMAGE | cut -d  ":" -f2)"
-                            sh "helm template  core-template . -f dev-canary.yaml --set tag=${TAG} --set weight=$weight> resources.yaml"
+                            sh "APP_NAME=\$(yq '.app_name' dev-canary.yaml)"
+                            sh "NAMESPACE=\$(yq '.namespace' dev-canary.yaml)"
+                            sh "IMAGE=\$(kubectl get deployment \$APP_NAME -n \$NAMESPACE -o=jsonpath='{\$.spec.template.spec.containers[:1].image}')"
+                            sh 'TAG=\$(echo \$IMAGE | cut -d  ":" -f2)'
+                            sh "helm template  core-template . -f dev-canary.yaml --set tag=\${TAG} --set weight=$weight> resources.yaml"
                             echo "-------------------*******Manifest Display*******-------------------"    
                             sh "cat resources.yaml"       
                             echo "-------------------*******Manifest Display End*******-------------------"   

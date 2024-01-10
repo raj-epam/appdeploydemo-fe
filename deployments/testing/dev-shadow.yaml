@@ -82,8 +82,8 @@ volumeMounts: []
 
 istio:
   enabled: true
-  gateway: ""
-  prefix: "/be"
-  rewrite: "/servers"
+  gateway: app-gateway
+  prefix: "/fe"
+  rewrite: "/fe"
   hosts: "*"
   mirror_percentage: 50

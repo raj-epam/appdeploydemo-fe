@@ -81,9 +81,9 @@ volumeMounts: []
 #   readOnly: true
 istio:
   enabled: true
-  gateway: ""
-  prefix: "/be"
-  rewrite: "/servers"
+  gateway: app-gateway
+  prefix: "/fe"
+  rewrite: "/fe"
   hosts: "*"
   header_name: "Version"
   header_value: "Green"
