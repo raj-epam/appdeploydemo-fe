@@ -1,0 +1,306 @@
+def qa_stage_run=false
+
+
+pipeline {
+
+    agent any
+    parameters {
+        choice(
+            choices: ['Canary' , 'Shadow', 'Blue-Green:-Header', 'Blue-Green:-Queryparam', 'Default'],
+            description: 'Deployment Strategy Type',
+            name: 'deployment',
+            defaultValue: 'Default')
+        string(defaultValue: '0', description: 'Canary Weight', name: 'weight', trim: true)
+        booleanParam(
+                defaultValue: false,
+                description: 'Enable for Canary Weight Update',
+                name: 'CANARY'
+                )   
+    }
+    environment {
+        SNYK_TOKEN = credentials('snyk-api-token')
+        ZAP_DOCKER_IMAGE = 'owasp/zap2docker-stable'
+        scannerHome = tool 'SonarQube'
+        GIT_CREDENTIALS = credentials('raj-epam')
+        TARGET_REPO_URL = 'github.com/raj-epam/gitops-flow.git'
+    }
+    stages {
+            stage ('checkout') {
+                parallel{
+                stage ('checkout-build') {
+                    steps {
+                        sh 'mkdir -p build'
+                        dir("build")
+                        {
+                            git branch: "main",
+                            credentialsId: "raj-epam",
+                            url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
+                        }
+                    }
+                    }
+                    stage ('checkout-deploy') {
+                    steps {   
+                        sh 'mkdir -p deploy'
+                        dir("deploy")
+                        {
+                            git branch: "main",
+                            credentialsId: "raj-epam",
+                            url: 'https://github.com/raj-epam/templates.git'
+                        }
+                    }
+                    }
+                }
+
+        }
+        
+        // stage ("Scan Code") {
+        //    when {not {expression { return params.CANARY }}}
+        //     steps {
+        //         dir("build") {
+        //             // Create a virtual environment
+        //             sh 'python3 -m venv venv'
+                    
+        //             // Activate the virtual environment
+        //             sh '. venv/bin/activate'
+        //             sh 'pip install -r requirements.txt '
+        //             //def scannerHome = tool 'sonarqube'
+        //             //env.PATH = "${scannerHome}/bin:${env.PATH}"
+        //         }
+        //         dir("build/app") {
+        //             withSonarQubeEnv(installationName: 'sonarqube') {
+        //                 sh '${scannerHome}/bin/sonar-scanner'
+        //                 sh 'rm -rf venv'
+        //             }
+        //         }
+        //     }
+        // }
+        // stage ("Test Code") {
+        //    when {not {expression { return params.CANARY }}}
+        //     steps {
+        //         dir("build") {
+        //             // Create a virtual environment
+        //             sh 'python3 -m venv venv'
+                    
+        //             // Activate the virtual environment
+        //             sh '. venv/bin/activate'
+        //             sh 'pip install -r requirements.txt '
+        //             //def scannerHome = tool 'sonarqube'
+        //             //env.PATH = "${scannerHome}/bin:${env.PATH}"
+        //         }
+        //         dir("build/app") {
+        //             sh 'python3 -m unittest tests.unit_test'
+        //             sh 'rm -rf venv'
+        //         }
+        //     }
+        // }    
+        
+        stage ('Build') {
+            when {
+                not {
+                        expression { return params.CANARY }
+                    }
+            }
+                steps {
+                    dir("build")
+                    {
+                        sh 'docker build -t dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER} .'
+                    }
+                }
+            }
+        // stage('SYNK Scan') {
+        //    when {not {expression { return params.CANARY }}}
+        //     steps {
+        //         script{
+        //             dir("build")
+        //                 {   
+        //                     echo "Current workspace is ${WORKSPACE}"
+        //                     sh 'rm -f vulnerabilities.json'
+        //                     echo "Starting Scan"
+        //                     def scanExitCode = sh(script: 'snyk container test dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}  --file=./Dockerfile --json-file-output=vulnerabilities.json --org=raj-epam --project-name=python_demo-FE', returnStatus: true)
+        //                     // def display = sh(script: 'snyk container monitor dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}  --file=./Dockerfile --org=raj-epam --project-name=python_demo-FE --project-environment=frontend', returnStatus: true)
+        //                     archiveArtifacts 'vulnerabilities.json'
+        //                     echo "error code = ${scanExitCode}"
+        //                 }
+        //             }
+        //         }
+        //     }
+
+
+        // stage('Run DAST Scan') {
+        //    when {not {expression { return params.CANARY }}}
+        //     steps {
+        //         script {
+                    
+        //             sh 'docker stop my-python-app || true'
+        //             sh 'docker rm -f my-python-app || true'
+        //             // Run your Python application in a Docker container
+        //             def dockerRunCmd = """docker run -d --name my-python-app -p 80:5000 dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}"""
+        //             sh dockerRunCmd
+        //             // Run ZAP DAST scan against the running application
+        //             //def zapScanCmd = """"""
+        //             def SAST_SCAN= sh(script:"docker run --rm -v ${WORKSPACE}:/zap/wrk/:rw --user root owasp/zap2docker-stable zap-baseline.py  -t http://\$(ip -f inet -o addr show docker0 | awk '{print \$4}' | cut -d '/' -f 1):80 -g gen.conf -r report.html", returnStatus: true)
+        //             archiveArtifacts 'report.html'
+        //             echo "error code = ${SAST_SCAN}"
+        //             // Stop and remove the running Python application container
+        //             sh 'docker stop my-python-app && docker rm my-python-app'
+        //         }
+        //     }
+        // }
+
+
+
+        stage('Push Image') {//Manifest Deploy for Dev Env Values
+            when {not {expression { return params.CANARY }}}
+            steps {
+            dir("build")
+            { withCredentials([string(credentialsId: 'svc_principal', variable: 'PASSWORD')]) {
+                        sh "az login --service-principal -u 01c88a92-5b91-4664-a88a-6b39f649ce24 -p $PASSWORD  --tenant b41b72d0-4e9f-4c26-8a69-f949f367c91d"
+                }
+                sh "az account set --subscription 40d692fa-1896-4563-9f1d-95ae2fa15c38"
+                sh "az acr login --name dhlawowacr"
+                sh 'docker push dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}'       
+                sh 'docker image rm dhlawowacr.azurecr.io/pywebapp:${BUILD_NUMBER}'                    
+            }
+
+            
+            }
+        }
+
+        stage('Deployments') {
+                    when { not {expression { return params.CANARY }}}
+                    stages {
+                        stage('Manifest Check') {
+                            steps{
+                                if (params.deployment == "Canary") {
+                                    sh 'echo "Canary Deployment Selected"'
+                                    dir("build/deployments/testing") {
+                                        sh "ls -laR"
+                                        //sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-canary.yaml"
+                                        sh 'cp dev-canary.yaml ../../../deploy/canary-template'
+                                        }
+                                    dir("deploy/canary-template") {  
+                                            sh "helm template  core-template . -f dev-canary.yaml --set tag=${BUILD_NUMBER}> resources.yaml"
+                                            sh "cp resources.yaml ../"
+                                            echo "-------------------*******Manifest Display*******-------------------"    
+                                            sh "cat resources.yaml"       
+                                            echo "-------------------*******Manifest Display End*******-------------------"   
+                                        }
+                                } 
+                                else if (params.deployment == "Shadow") {
+                                    sh 'echo "Shadow Deployment Selected"'
+                                    dir("build/deployments/testing") {
+                                        sh "ls -laR"
+                                        sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-shadow.yaml"
+                                        sh 'cp dev-shadow.yaml ../../../deploy/shadow-template'
+                                        }
+                                    dir("deploy/shadow-template") {  
+                                            sh "helm template  core-template . -f dev-shadow.yaml > resources.yaml"
+                                            sh "cp resources.yaml ../"
+                                            echo "-------------------*******Manifest Display*******-------------------"    
+                                            sh "cat resources.yaml"       
+                                            echo "-------------------*******Manifest Display End*******-------------------"       
+                                        }
+                                }
+                                else if (params.deployment == "Blue-Green:-Header") {
+                                    sh 'echo "Blue Green Header Based Deployment Selected"'
+                                    dir("build/deployments/testing") {
+                                        sh "ls -laR"
+                                        sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-header.yaml"
+                                        sh 'cp dev-header.yaml ../../../deploy/header-template'
+                                        }
+                                    dir("deploy/header-template") {  
+                                            sh "helm template  core-template . -f dev-header.yaml > resources.yaml"
+                                            sh "cp resources.yaml ../"
+                                            echo "-------------------*******Manifest Display*******-------------------"    
+                                            sh "cat resources.yaml"       
+                                            echo "-------------------*******Manifest Display End*******-------------------"       
+                                        }
+                                }
+                                else if (params.deployment == "Blue-Green:-Queryparam") {
+                                    sh 'echo "Blue Green Query Based Deployment Selected"'
+                                    dir("build/deployments/testing") {
+                                        sh "ls -laR"
+                                        sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev-query.yaml"
+                                        sh 'cp dev-query.yaml ../../../deploy/query-template'
+                                        }
+                                    dir("deploy/query-template") {  
+                                            sh "helm template  core-template . -f dev-query.yaml > resources.yaml"
+                                            sh "cp resources.yaml ../"
+                                            echo "-------------------*******Manifest Display*******-------------------"    
+                                            sh "cat resources.yaml"       
+                                            echo "-------------------*******Manifest Display End*******-------------------"       
+                                        }
+                                }
+                                else {
+                                    sh 'echo "Rolling Deployment Selected"'
+                                    dir("build/deployments") {
+                                        sh "ls -laR"
+                                        sh "sed -i 's/\\(tag: \\)[0-9]\\+/\\1${BUILD_NUMBER}/' dev.yaml"
+                                        sh 'cp dev.yaml ../../../deploy/core-template'
+                                        }
+                                    dir("deploy/core-template") {  
+                                            sh "helm template  core-template . -f dev.yaml > resources.yaml"
+                                            sh "cp resources.yaml ../"
+                                            echo "-------------------*******Manifest Display*******-------------------"    
+                                            sh "cat resources.yaml"       
+                                            echo "-------------------*******Manifest Display End*******-------------------"       
+                                        }
+                                }
+                            }
+                        }
+                        stage('Version Manifest Deploy') {//Manifest Deploy for Dev Env Values
+                            steps {         
+                                   catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                                    timeout(time: 100, unit: "MINUTES") {
+                                        input message: 'Do you want to approve the deployment?', ok: 'Yes'
+                                    }
+                                    dir("deploy")
+                                    { withCredentials([string(credentialsId: 'svc_principal', variable: 'PASSWORD')]) {
+                                                sh "az login --service-principal -u 01c88a92-5b91-4664-a88a-6b39f649ce24 -p $PASSWORD  --tenant b41b72d0-4e9f-4c26-8a69-f949f367c91d"
+                                        }
+                                        sh "az account set --subscription 40d692fa-1896-4563-9f1d-95ae2fa15c38"
+                                        sh "az aks get-credentials --resource-group dhl_awow_demo --name dhl-awow-demo-cluster --admin"
+                                        sh "kubectl apply -f resources.yaml"                            
+                                    }
+                                    }
+                            }
+                        }
+                }
+        }
+
+        stage('Canary Update') {
+            when {expression { return params.CANARY }}
+            steps{
+                    dir("build/deployments/testing") {
+                        sh "ls -laR"
+                        sh 'cp dev-canary.yaml ../../../deploy/canary-template'
+                        }
+                    dir("deploy/canary-template") {  
+                            sh "APP_NAME=$(yq ".app_name" dev-canary.yaml)"
+                            sh "NAMESPACE=$(yq ".namespace" dev-canary.yaml)"
+                            sh "IMAGE=$(kubectl get deployment $APP_NAME -n $NAMESPACE -o=jsonpath='{$.spec.template.spec.containers[:1].image}')"
+                            sh "TAG=$(echo $IMAGE | cut -d  ":" -f2)"
+                            sh "helm template  core-template . -f dev-canary.yaml --set tag=${TAG} --set weight=$weight> resources.yaml"
+                            echo "-------------------*******Manifest Display*******-------------------"    
+                            sh "cat resources.yaml"       
+                            echo "-------------------*******Manifest Display End*******-------------------"   
+                            sh "kubectl apply -f resources.yaml"
+                        }    
+
+            }
+        } 
+    }
+        post {
+            // Clean after build
+            always {
+                cleanWs(cleanWhenNotBuilt: false,
+                        deleteDirs: true,
+                        disableDeferredWipeout: true,
+                        notFailBuild: true,
+                        patterns: [[pattern: '.gitignore', type: 'INCLUDE'],
+                                [pattern: '.propsfile', type: 'EXCLUDE']])
+            }
+    }
+
+
+}
