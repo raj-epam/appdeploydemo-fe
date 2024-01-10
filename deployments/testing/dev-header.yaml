@@ -82,8 +82,8 @@ volumeMounts: []
 istio:
   enabled: true
   gateway: app-gateway
-  prefix: "/fe"
-  rewrite: "/fe"
+  prefix: "/fecanary"
+  rewrite: "/fecanary"
   hosts: "*"
   header_name: "Version"
   header_value: "Green"
