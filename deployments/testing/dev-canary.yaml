@@ -68,7 +68,7 @@ volumeMounts: []
 istio:
   enabled: true
   gateway: app-gateway-canary
-  prefix: "/fecanary"
+  prefix: "/canary"
   rewrite: "/fecanary"
   hosts: "*"
   weight: 10
