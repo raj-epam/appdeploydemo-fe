@@ -83,7 +83,7 @@ volumeMounts: []
 istio:
   enabled: true
   gateway: app-gateway
-  prefix: "/canary"
+  prefix: "/shadow"
   rewrite: "/fecanary"
   hosts: "*"
   mirror_percentage: 50
