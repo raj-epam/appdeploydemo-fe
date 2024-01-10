@@ -2,7 +2,9 @@ def qa_stage_run=false
 
 
 pipeline {
-
+    options {
+    buildDiscarder(logRotator(numToKeepStr: '3', artifactNumToKeepStr: '3'))
+    }
     agent any
     parameters {
         choice(
@@ -242,6 +244,7 @@ pipeline {
                                             sh "cp resources.yaml ../"
                                             echo "-------------------*******Manifest Display*******-------------------"    
                                             sh "cat resources.yaml"       
+                                            archiveArtifacts 'resources.yaml'
                                             echo "-------------------*******Manifest Display End*******-------------------"       
                                         }
                                 }
@@ -260,6 +263,7 @@ pipeline {
                                         }
                                         sh "az account set --subscription 40d692fa-1896-4563-9f1d-95ae2fa15c38"
                                         sh "az aks get-credentials --resource-group dhl_awow_demo --name dhl-awow-demo-cluster --admin"
+                                        archiveArtifacts 'resources.yaml'
                                         sh "kubectl apply -f resources.yaml"                            
                                     }
                                     }

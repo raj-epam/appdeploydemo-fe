@@ -1,7 +1,7 @@
 # Default values for core-template.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-namespace: python-app
+namespace: python-app-canary
 replicaCount: 1
 app_name: python-fe
 version: v1
@@ -67,8 +67,8 @@ volumeMounts: []
 
 istio:
   enabled: true
-  gateway: app-gateway
-  prefix: "/fe"
-  rewrite: "/fe"
+  gateway: app-gateway-canary
+  prefix: "/fe-canary"
+  rewrite: "/fe-canary"
   hosts: "*"
   weight: 10
