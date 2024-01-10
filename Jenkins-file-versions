@@ -30,7 +30,7 @@ pipeline {
                         sh 'mkdir -p build'
                         dir("build")
                         {
-                            git branch: "canary-versioning",
+                            git branch: "query-versioning",
                             credentialsId: "raj-epam",
                             url: 'https://github.com/raj-epam/appdeploydemo-fe.git'
                         }
